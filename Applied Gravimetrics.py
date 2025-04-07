@@ -16,6 +16,7 @@ planetImages=0
 gravity = 66.7
 scale = 1
 visualScale=0.75
+paused = False
 def addPlanet(X, Y, M, DX=0.0, DY=0.0):
     planetXs.append(X)
     planetYs.append(Y)
@@ -68,29 +69,30 @@ def cleanValues(fidelity = 3):
 def mergePlanets(i, j):
     c = min(i, j)
     d = max(i, j)
+    if planetMs[c]==0:
+        removePlanet(c)
+        return
+    if planetMs[d]==0:
+        removePlanet(d)
+        return
     if not planetMs[c]+planetMs[d]==0:
         planetDXs[c]=(planetDXs[c]*planetMs[c]+planetDXs[d]*planetMs[d])/(planetMs[c]*planetMs[d])
         planetDYs[c]=(planetDYs[c]*planetMs[c]+planetDYs[d]*planetMs[d])/(planetMs[c]*planetMs[d])
         planetMs[c]=planetMs[c]+planetMs[d]
-        planetXs.pop(d)
-        planetYs.pop(d)
-        planetDXs.pop(d)
-        planetDYs.pop(d)
-        planetMs.pop(d)
+        removePlanet(d)
     else:
-        planetXs.pop(c)
-        planetYs.pop(c)
-        planetDXs.pop(c)
-        planetDYs.pop(c)
-        planetMs.pop(c)
-        planetXs.pop(d - 1)
-        planetYs.pop(d - 1)
-        planetDXs.pop(d - 1)
-        planetDYs.pop(d - 1)
-        planetMs.pop(d - 1)
+        removePlanet(c)
+        removePlanet(d-1)
 
     # print(len(planetYs))
     cleanValues()
+
+def removePlanet(idx):
+    planetXs.pop(idx)
+    planetYs.pop(idx)
+    planetDXs.pop(idx)
+    planetDYs.pop(idx)
+    planetMs.pop(idx)
 
 def placePlanets(c):
     pos=pygame.mouse.get_pos()
@@ -99,8 +101,8 @@ def placePlanets(c):
     if c==1:
         addPlanet(pos[0]/scale, pos[1]/scale, -40)
 
-def showMotion():
-    global scale
+def mainLoop():
+    global scale, paused
     pygame.init()
     canvas = pygame.display.set_mode([600,600])
     quit=False
@@ -114,12 +116,16 @@ def showMotion():
                     placePlanets(0)
                 if pygame.mouse.get_pressed(3)[2]:
                     placePlanets(1)
-        passTime(0.01)
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    paused = not paused
+        if not paused:
+            passTime(0.01)
         renderPlanets(canvas, scale)
         time.sleep(0.001)
 
 def loadAssets():
-    global planetImages
+    global planetImages, UI_elements
     planetImages= [pygame.transform.scale_by(pygame.image.load("assets/white_hole.png"), visualScale),
                    pygame.transform.scale_by(pygame.image.load("assets/star_purple.png"), 2*visualScale),
                    pygame.transform.scale_by(pygame.image.load("assets/star_teal.png"), 1.5*visualScale),
@@ -133,6 +139,14 @@ def loadAssets():
                    pygame.transform.scale_by(pygame.image.load("assets/star_red.png"), 1.75*visualScale),
                    pygame.transform.scale_by(pygame.image.load("assets/star_blue.png"), 2*visualScale),
                    pygame.transform.scale_by(pygame.image.load("assets/black_hole.png"), visualScale)]
+    UI_elements = [
+        pygame.image.load("assets/button_play.png"),
+        pygame.image.load("assets/button_pause.png"),
+        pygame.image.load("assets/button_create.png"),
+        pygame.image.load("assets/button_edit.png"),
+        pygame.image.load("assets/button_destroy.png"),
+        pygame.image.load("assets/button_settings.png")
+    ]
     pygame.display.set_caption("Gravimetrics V0.1")
     pygame.display.set_icon(planetImages[12])
 
@@ -165,7 +179,14 @@ def renderPlanets(canvas, scale=1):
             canvas.blit(planetImages[11], (planetXs[i] * scale - 18 * 2 * visualScale, planetYs[i] * scale - 18 * 2 * visualScale))
         else: # black hole
             canvas.blit(planetImages[12], (planetXs[i] * scale - 17, planetYs[i] * scale - 17))
+    renderUI(canvas)
     pygame.display.update()
+
+def renderUI(canvas):
+    if not paused:
+        canvas.blit(UI_elements[1], (568, 4))
+    else:
+        canvas.blit(UI_elements[0], (568, 4))
 
 # for i in range(0, 32):
     # addPlanet(30+m.cos(i*m.pi/16)*5, 30+m.sin(i*m.pi/16)*5, 1, m.cos(i*m.pi/16+m.pi/4)*2,m.sin(i*m.pi/16+m.pi/4)*2)
@@ -178,5 +199,5 @@ addPlanet(30, 20, 1, 3, 0)
 # addPlanet(30, 30, 100)
 # addPlanet(30, 40, 1, -6, 0)
 for i in range(20):
-    addPlanet(r.randint(0, int(600/scale)), r.randint(0, int(600/scale)), 1, r.randint(-3,3),r.randint(-3,3))
-showMotion()
+    addPlanet(r.randint(0, int(600/scale)), r.randint(0, int(600/scale)), 10)
+mainLoop()
