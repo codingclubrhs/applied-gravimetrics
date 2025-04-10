@@ -16,7 +16,8 @@ paused = False
 mode = 0
 open = 0
 font = ''
-m_change = 1
+mStep = 1
+vStep = 1
 edit_target = -1
 template_planet = [10, 0, 0, False, False]
 
@@ -110,58 +111,66 @@ def simulateClick():
         elif mode == 4:
             toggleLocked(pos)
 def UI_click():
-    global open, mode, m_change
+    global open, mode, mStep, vStep
     pos = pygame.mouse.get_pos()
     if open==1:
         if bounded(pos, (520, 65), (568, 113)):
             q = getQuadrant((520, 65), (568, 113), pos)
             if q == 1:
-                template_planet[0]+=m_change
+                template_planet[0]+=mStep
                 if template_planet[0] > 10000:
                     template_planet[0] = 10000
             if q == 3:
-                template_planet[0]-=m_change
+                template_planet[0]-=mStep
                 if template_planet[0] < -10000:
                     template_planet[0]=-10000
-            if q == 0 and m_change < 1024:
-                m_change *= 2
-            if q == 2 and m_change > 1/1024:
-                m_change /=2
+            if q == 0 and mStep < 1024:
+                mStep *= 2
+            if q == 2 and mStep > 1/1024:
+                mStep /=2
         if bounded(pos, (520, 170), (568, 218)):
             q = getQuadrant((520, 170), (568, 218), pos)
             if q == 1:
-                template_planet[1]+=1
+                template_planet[1]+=vStep
             if q == 3:
-                template_planet[1]-=1
+                template_planet[1]-=vStep
             if q == 0:
-                template_planet[2]-=1
+                template_planet[2]-=vStep
             if q == 2:
-                template_planet[2]+=1
+                template_planet[2]+=vStep
+        if bounded(pos, (500, 170), (526, 218)) and vStep>1/128:
+            vStep/=2
+        if bounded(pos, (574, 170), (600, 218)) and vStep<128:
+            vStep*=2
     if open==2:
-        if bounded(pos, (520, 65), (568, 113)):
-            q = getQuadrant((520, 65), (568, 113), pos)
+        if bounded(pos, (526, 65), (574, 113)):
+            q = getQuadrant((526, 65), (574, 113), pos)
             if q == 1:
-                planets[edit_target].m+=m_change
+                planets[edit_target].m+=mStep
                 if planets[edit_target].m > 10000:
                     planets[edit_target].m = 10000
             if q == 3:
-                planets[edit_target].m-=m_change
+                planets[edit_target].m-=mStep
                 if planets[edit_target].m < -10000:
                     planets[edit_target].m=-10000
-            if q == 0 and m_change < 1024:
-                m_change *= 2
-            if q == 2 and m_change > 1/1024:
-                m_change /=2
-        if bounded(pos, (520, 170), (568, 218)):
-            q = getQuadrant((520, 170), (568, 218), pos)
+            if q == 0 and mStep < 1024:
+                mStep *= 2
+            if q == 2 and mStep > 1/1024:
+                mStep /=2
+        if bounded(pos, (526, 170), (574, 218)):
+            q = getQuadrant((526, 170), (574, 218), pos)
             if q == 1:
-                planets[edit_target].dx+=1
+                planets[edit_target].dx+=vStep
             if q == 3:
-                planets[edit_target].dx-=1
+                planets[edit_target].dx-=vStep
             if q == 0:
-                planets[edit_target].dy-=1
+                planets[edit_target].dy-=vStep
             if q == 2:
-                planets[edit_target].dy+=1
+                planets[edit_target].dy+=vStep
+        if bounded(pos, (500, 170), (526, 218)) and vStep>1/128:
+            vStep/=2
+        if bounded(pos, (574, 170), (600, 218)) and vStep<128:
+            vStep*=2
 
 # Control
 def checkDelete(position):
@@ -305,32 +314,36 @@ def renderUI(canvas):
             canvas.blit(text_elements[0], (520, 5))
             # Mass control
             canvas.blit(text_elements[7], (520, 45))
-            canvas.blit(UI_elements[10], (520, 65))
+            canvas.blit(UI_elements[10], (526, 65))
             text_elements[8]=font.render("Mass: " + str(template_planet[0]), False, (0,0,0))
             canvas.blit(text_elements[8], (510, 120))
-            text_elements[8]=font.render("Step: " + str(m_change), False, (0,0,0))
+            text_elements[8]=font.render("Step: " + str(mStep), False, (0, 0, 0))
             canvas.blit(text_elements[8], (510, 130))
             # Velocity control
             canvas.blit(text_elements[9], (505, 150))
-            canvas.blit(UI_elements[11], (520, 170))
+            canvas.blit(UI_elements[11], (526, 170))
             text_elements[10] = font.render("("+str(template_planet[1])+", " + str(template_planet[2]) + ")", False, (0, 0, 0))
             canvas.blit(text_elements[10], (505, 225))
+            text_elements[10] = font.render("Step: " + str(vStep), False, (0, 0, 0))
+            canvas.blit(text_elements[10], (510, 235))
         if open==2:
             canvas.blit(UI_elements[7], (500, 0))
             canvas.blit(text_elements[1], (525, 5))
             if not edit_target == -1:
                 # Mass control
                 canvas.blit(text_elements[11], (510, 45))
-                canvas.blit(UI_elements[10], (520, 65))
+                canvas.blit(UI_elements[10], (526, 65))
                 text_elements[8] = font.render("Mass: " + str(planets[edit_target].m), False, (0, 0, 0))
                 canvas.blit(text_elements[8], (510, 120))
-                text_elements[8]=font.render("Step: " + str(m_change), False, (0,0,0))
+                text_elements[8]=font.render("Step: " + str(mStep), False, (0, 0, 0))
                 canvas.blit(text_elements[8], (510, 130))
                 # Velocity control
                 canvas.blit(text_elements[12], (504, 150))
-                canvas.blit(UI_elements[11], (520, 170))
+                canvas.blit(UI_elements[11], (526, 170))
                 text_elements[10] = font.render("(" + str(round(planets[edit_target].dx, 1)) + ", " + str(round(planets[edit_target].dy, 1)) + ")", False,(0, 0, 0))
                 canvas.blit(text_elements[10], (505, 225))
+                text_elements[10]=font.render("Step: " + str(vStep), False, (0, 0, 0))
+                canvas.blit(text_elements[10], (510, 235))
             else:
                 canvas.blit(text_elements[15], (510, 30))
                 canvas.blit(text_elements[16], (510, 50))
