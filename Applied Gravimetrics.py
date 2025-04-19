@@ -3,36 +3,51 @@ import math as m
 import random as r
 import time
 
-import pygame as p
+import pygame
 import pygame.display
 from Planet import Planet
-
+# Data
 planets = []
-planetImages=0
+# Settings
 gravity = 66.7
 scale = 1
-visualScale=0.75
+visualScale=0.7
 paused = False
+timeScale = 1
+frameRate=120
+# UI rendering
 mode = 0
-open = 0
+open_screen = 0
 font = ''
-mStep = 1
-vStep = 1
+# UI settings
 edit_target = -1
 template_planet = [10, 0, 0, False, False]
+wrap_method = 0
+mStep = 1
+vStep = 1
+# Assets
+UI_elements=[]
+text_elements=[]
+planetImages=[]
+
 
 # Simulation and control
 def addPlanet(X, Y, M, DX=0.0, DY=0.0, locked=False, vlock=False):
     planets.append(Planet(X, Y, M, DX, DY, locked, vlock))
 def recordPlanets():
-    for i in planets:
-        print(i)
-def passTime(time):
-    (xAccels, yAccels) = getAccelerations()
+    for j in planets:
+        print(j)
+def passTime(t):
+    (x_accels, y_accels) = getAccelerations()
     for i in range(len(planets)):
-        planets[i].passTime(time, xAccels[i], yAccels[i])
-        planets[i].x = planets[i].x % (600/scale)
-        planets[i].y = planets[i].y % (600/scale)
+        if i<len(planets):
+            planets[i].passTime(t, x_accels[i], y_accels[i])
+            if wrap_method==0:
+                planets[i].x = planets[i].x % (600/scale)
+                planets[i].y = planets[i].y % (600/scale)
+            elif wrap_method==1 and not bounded((planets[i].x, planets[i].y), (0,0), (600, 600)):
+                removePlanet(i)
+                i-=1
     cleanValues()
 def getAccelerations():
     planetD2Xs = [0 for _ in planets]
@@ -82,24 +97,24 @@ def removePlanet(idx):
 
 # Mouse input
 def simulateClick():
-    global paused, open, mode
+    global paused, open_screen, mode
     pos = pygame.mouse.get_pos()
-    buttonX = 600 if open == 0 else 500
+    buttonX = 600 if open_screen == 0 else 500
     if bounded(pos, (568, 568), (600, 600)):
         paused = not paused
     elif bounded(pos, (buttonX-32, 8), (buttonX, 72)):
-        open=1 if not open==1 else 0
+        open_screen=1 if not open_screen == 1 else 0
         mode=1
     elif bounded(pos, (buttonX-32, 80), (buttonX, 144)):
-        open=2 if not open==2 else 0
+        open_screen=2 if not open_screen == 2 else 0
         mode=2
     elif bounded(pos, (buttonX-32, 152), (buttonX, 216)):
-        open=3 if not open==3 else 0
+        open_screen=3 if not open_screen == 3 else 0
         mode=3
     elif bounded(pos, (buttonX-32, 224), (buttonX, 288)):
-        # open=4 if not open==4 else 0
+        open_screen=4 if not open_screen==4 else 0
         mode=4
-    elif bounded(pos, (500, 0), (600, 600)) and not open == 0:
+    elif bounded(pos, (500, 0), (600, 600)) and not open_screen == 0:
         UI_click()
     else:
         if mode == 1:
@@ -108,91 +123,111 @@ def simulateClick():
             selectPlanet(pos)
         elif mode == 3:
             checkDelete(pos)
-        elif mode == 4:
-            toggleLocked(pos)
 def UI_click():
-    global open, mode, mStep, vStep
+    global open_screen, mode, mStep, vStep, wrap_method, timeScale, scale
     pos = pygame.mouse.get_pos()
-    if open==1:
+    if open_screen==1:
         if bounded(pos, (520, 65), (568, 113)):
-            q = getQuadrant((520, 65), (568, 113), pos)
-            if q == 1:
+            quad = getQuadrant((520, 65), (568, 113), pos)
+            if quad == 1:
                 template_planet[0]+=mStep
                 if template_planet[0] > 10000:
                     template_planet[0] = 10000
-            if q == 3:
+            if quad == 3:
                 template_planet[0]-=mStep
                 if template_planet[0] < -10000:
                     template_planet[0]=-10000
-            if q == 0 and mStep < 1024:
+            if quad == 0 and mStep < 1024:
                 mStep *= 2
-            if q == 2 and mStep > 1/1024:
+            if quad == 2 and mStep > 1/1024:
                 mStep /=2
         if bounded(pos, (520, 170), (568, 218)):
-            q = getQuadrant((520, 170), (568, 218), pos)
-            if q == 1:
+            quad = getQuadrant((520, 170), (568, 218), pos)
+            if quad == 1:
                 template_planet[1]+=vStep
-            if q == 3:
+            if quad == 3:
                 template_planet[1]-=vStep
-            if q == 0:
+            if quad == 0:
                 template_planet[2]-=vStep
-            if q == 2:
+            if quad == 2:
                 template_planet[2]+=vStep
         if bounded(pos, (500, 170), (526, 218)) and vStep>1/128:
             vStep/=2
         if bounded(pos, (574, 170), (600, 218)) and vStep<128:
             vStep*=2
-    if open==2:
+        if bounded(pos, (570, 257), (586, 273)):
+            template_planet[3] = not template_planet[3]
+        if bounded(pos, (570, 277), (586, 293)):
+            template_planet[4] = not template_planet[4]
+    if open_screen==2:
         if bounded(pos, (526, 65), (574, 113)):
-            q = getQuadrant((526, 65), (574, 113), pos)
-            if q == 1:
+            quad = getQuadrant((526, 65), (574, 113), pos)
+            if quad == 1:
                 planets[edit_target].m+=mStep
                 if planets[edit_target].m > 10000:
                     planets[edit_target].m = 10000
-            if q == 3:
+            if quad == 3:
                 planets[edit_target].m-=mStep
                 if planets[edit_target].m < -10000:
                     planets[edit_target].m=-10000
-            if q == 0 and mStep < 1024:
+            if quad == 0 and mStep < 1024:
                 mStep *= 2
-            if q == 2 and mStep > 1/1024:
+            if quad == 2 and mStep > 1/1024:
                 mStep /=2
         if bounded(pos, (526, 170), (574, 218)):
-            q = getQuadrant((526, 170), (574, 218), pos)
-            if q == 1:
+            quad = getQuadrant((526, 170), (574, 218), pos)
+            if quad == 1:
                 planets[edit_target].dx+=vStep
-            if q == 3:
+            if quad == 3:
                 planets[edit_target].dx-=vStep
-            if q == 0:
+            if quad == 0:
                 planets[edit_target].dy-=vStep
-            if q == 2:
+            if quad == 2:
                 planets[edit_target].dy+=vStep
         if bounded(pos, (500, 170), (526, 218)) and vStep>1/128:
             vStep/=2
         if bounded(pos, (574, 170), (600, 218)) and vStep<128:
             vStep*=2
-
+        if bounded(pos, (570, 257), (586, 273)):
+            planets[edit_target].locked = not planets[edit_target].locked
+        if bounded(pos, (570, 277), (586, 293)):
+            planets[edit_target].vlock = not planets[edit_target].vlock
+    if open_screen==4:
+        if bounded(pos, (500, 48), (600, 66)):
+            wrap_method=(wrap_method+1)%3
+        if bounded(pos, (500, 95), (550, 119)) and timeScale>0.25:
+            timeScale-=0.25
+        if bounded(pos, (550, 95), (600, 119)) and timeScale<10:
+            timeScale+=0.25
+        if bounded(pos, (500, 113), (600, 131)):
+            wrap_method=(wrap_method+1)%3
+        if bounded(pos, (500, 160), (550, 184)) and scale>1/64:
+            scale/=2
+        if bounded(pos, (550, 160), (600, 184)) and scale<64:
+            scale*=2
 # Control
 def checkDelete(position):
+    global scale
     for i in range(len(planets)):
-        if abs(position[0] - (planets[i].x / scale))<8 and abs(position[1] - (planets[i].y / scale))<8:
+        if abs(position[0] - (planets[i].x * scale))<20*visualScale and abs(position[1] - (planets[i].y * scale))<20*visualScale:
             removePlanet(i)
             return
 def toggleLocked(position):
+    global scale
     for i in range(len(planets)):
-        if abs(position[0] - (planets[i].x / scale))<8 and abs(position[1] - (planets[i].y / scale))<8:
+        if abs(position[0] - (planets[i].x * scale))<20*visualScale and abs(position[1] - (planets[i].y * scale))<20*visualScale:
             planets[i].locked = not planets[i].locked
             print(planets[i].locked)
             return
 def selectPlanet(position):
-    global edit_target
+    global edit_target, scale
     for i in range(len(planets)):
-        if abs(position[0] - (planets[i].x / scale))<8 and abs(position[1] - (planets[i].y / scale))<8:
+        if abs(position[0] - (planets[i].x * scale))<20*visualScale and abs(position[1] - (planets[i].y * scale))<20*visualScale:
             edit_target = i
 
 # Helper methods
-def bounded(pos, min, max):
-    return (min[0]<=pos[0]<=max[0]) and (min[1]<=pos[1]<=max[1])
+def bounded(pos, top_left, bottom_right):
+    return (top_left[0] <= pos[0] <= bottom_right[0]) and (top_left[1] <= pos[1] <= bottom_right[1])
 def getQuadrant(topRight, bottomLeft, pos):
     # 0 -> top, 1-> right, 2 -> bottom, 3 -> left
     relativePos = (pos[0]-topRight[0], pos[1]-topRight[1])
@@ -238,7 +273,11 @@ def loadAssets():
         pygame.transform.scale_by(pygame.image.load("assets/UI/UI_bar_destroy.png"), 5),
         pygame.transform.scale_by(pygame.image.load("assets/UI/UI_bar_settings.png"), 5),
         pygame.transform.scale_by(pygame.image.load("assets/UI/mass_control.png"), 1.5), #10
-        pygame.transform.scale_by(pygame.image.load("assets/UI/velocity_control.png"), 1.5)
+        pygame.transform.scale_by(pygame.image.load("assets/UI/velocity_control.png"), 1.5),
+        pygame.transform.scale_by(pygame.image.load("assets/UI/checkbox.png"), 1),
+        pygame.transform.scale_by(pygame.image.load("assets/UI/checkedbox.png"), 1),
+        pygame.transform.scale_by(pygame.image.load("assets/UI/arrow.png"), 2),
+        pygame.transform.rotate(pygame.transform.scale_by(pygame.image.load("assets/UI/arrow.png"), 2), 180) #15
     ]
     text_elements = [
         title_font.render("Create", False, (0, 0, 0)), # 0
@@ -254,15 +293,22 @@ def loadAssets():
         font.render("_", False, (0,0,0)), # 10
         font.render("Edit mass", False, (0, 0, 0)),
         font.render("Edit velocity", False, (0, 0, 0)),
-        font.render("Lock position", False, (0, 0, 0)),
-        font.render("Lock velocity", False, (0, 0, 0)),
+        font.render("Lock pos", False, (0, 0, 0)),
+        font.render("Lock vel", False, (0, 0, 0)),
         font.render("Click on", False, (0,0,0)), # 15
         font.render("a planet", False, (0,0,0)),
-        font.render("to edit", False, (0,0,0))
+        font.render("to edit", False, (0,0,0)),
+        font.render("Wrap method", False, (0,0,0)),
+        font.render("Wrap", False, (0,0,0)),
+        font.render("Destroy", False, (0,0,0)), #20
+        font.render("Simulate", False, (0,0,0)),
+        font.render("Time passage", False, (0,0,0)),
+        font.render("Scale", False, (0,0,0)),
     ]
-    pygame.display.set_caption("Gravimetrics V0.2")
+    pygame.display.set_caption("Gravimetrics V1.0")
     pygame.display.set_icon(planetImages[12])
-def renderPlanets(canvas, scale=1):
+def renderEverything(canvas):
+    global scale
     canvas.fill((0,0,0))
     for i in range(len(planets)):
         if planets[i].m<-1000: # White hole
@@ -299,17 +345,17 @@ def renderUI(canvas):
         canvas.blit(UI_elements[1], (568, 568))
     else:
         canvas.blit(UI_elements[0], (568, 568))
-    if open==0:
+    if open_screen==0:
         canvas.blit(UI_elements[2], (568, 8))
         canvas.blit(UI_elements[3], (568, 80))
         canvas.blit(UI_elements[4], (568, 152))
-        # canvas.blit(UI_elements[5], (568, 224))
+        canvas.blit(UI_elements[5], (568, 224))
     else:
         canvas.blit(UI_elements[2], (468, 8))
         canvas.blit(UI_elements[3], (468, 80))
         canvas.blit(UI_elements[4], (468, 152))
-        # canvas.blit(UI_elements[5], (468, 224))
-        if open==1:
+        canvas.blit(UI_elements[5], (468, 224))
+        if open_screen==1:
             canvas.blit(UI_elements[6], (500, 0))
             canvas.blit(text_elements[0], (520, 5))
             # Mass control
@@ -326,7 +372,14 @@ def renderUI(canvas):
             canvas.blit(text_elements[10], (505, 225))
             text_elements[10] = font.render("Step: " + str(vStep), False, (0, 0, 0))
             canvas.blit(text_elements[10], (510, 235))
-        if open==2:
+            canvas.blit(UI_elements[15], (507, 182))
+            canvas.blit(UI_elements[14], (572, 182))
+            # MV locking
+            canvas.blit(text_elements[13], (510, 260))
+            canvas.blit(text_elements[14], (510, 280))
+            canvas.blit(UI_elements[13] if template_planet[3] else UI_elements[12], (570, 257))
+            canvas.blit(UI_elements[13] if template_planet[4] else UI_elements[12], (570, 277))
+        if open_screen==2:
             canvas.blit(UI_elements[7], (500, 0))
             canvas.blit(text_elements[1], (525, 5))
             if not edit_target == -1:
@@ -344,30 +397,51 @@ def renderUI(canvas):
                 canvas.blit(text_elements[10], (505, 225))
                 text_elements[10]=font.render("Step: " + str(vStep), False, (0, 0, 0))
                 canvas.blit(text_elements[10], (510, 235))
+                canvas.blit(UI_elements[15], (507, 182))
+                canvas.blit(UI_elements[14], (572, 182))
+                # MV locking
+                canvas.blit(text_elements[13], (510, 260))
+                canvas.blit(text_elements[14], (510, 280))
+                canvas.blit(UI_elements[13] if planets[edit_target].locked else UI_elements[12], (570, 257))
+                canvas.blit(UI_elements[13] if planets[edit_target].vlock else UI_elements[12], (570, 277))
             else:
                 canvas.blit(text_elements[15], (510, 30))
                 canvas.blit(text_elements[16], (510, 50))
                 canvas.blit(text_elements[17], (510, 70))
-        if open==3:
+        if open_screen==3:
             canvas.blit(UI_elements[8], (500, 0))
             canvas.blit(text_elements[4], (510, 10))
             canvas.blit(text_elements[5], (540, 10))
             canvas.blit(text_elements[6], (570, 10))
-        if open==4:
+        if open_screen==4:
             canvas.blit(UI_elements[9], (500, 0))
             canvas.blit(text_elements[3], (510, 10))
+            canvas.blit(text_elements[18], (510, 40))
+            canvas.blit(text_elements[19+wrap_method], (525, 53))
+            canvas.blit(text_elements[22], (510, 75))
+            canvas.blit(UI_elements[15], (515, 95))
+            canvas.blit(UI_elements[14], (559, 95))
+            text_elements[10]=font.render(str(timeScale), False, (0,0,0))
+            canvas.blit(text_elements[10], (545, 102))
+            canvas.blit(text_elements[23], (510, 140))
+            text_elements[10] = font.render(str(scale), False, (0, 0, 0))
+            canvas.blit(text_elements[10], (545, 167))
+            canvas.blit(UI_elements[15], (515, 160))
+            canvas.blit(UI_elements[14], (559, 160))
+
+
 
 def mainLoop():
-    global scale, paused
+    global scale, paused, frameRate,timeScale
     pygame.init()
     canvas = pygame.display.set_mode([600,600])
-    quit=False
+    quitting=False
     runTime=0
     loadAssets()
-    while not quit:
+    while not quitting:
         for event in pygame.event.get():
             if event.type==pygame.QUIT:
-                quit=True
+                quitting=True
             if event.type==1025:
                 simulateClick()
             if event.type == pygame.KEYDOWN:
@@ -386,15 +460,10 @@ def mainLoop():
                     for p in planets:
                         p.vlock=True
         if not paused:
-            passTime(0.01)
+            passTime(1/frameRate*timeScale)
         runTime+=1
         if runTime>100000:
             exit(682)
-        renderPlanets(canvas, scale)
-        time.sleep(0.001)
-
-
-for i in range(32):
-    addPlanet(300+100*m.cos(2*m.pi/32*i), 300+100*m.sin(2*m.pi/32*i), 100, 30*m.cos(2*m.pi/32*i), 30*m.sin(2*m.pi/32*i))
-    addPlanet(300+150*m.cos(2*m.pi/32*i), 300+150*m.sin(2*m.pi/32*i), 100, 30*m.cos(2*m.pi/32*i+m.pi/3), 30*m.sin(2*m.pi/32*i+m.pi/3))
+        renderEverything(canvas)
+        time.sleep(1/frameRate)
 mainLoop()
